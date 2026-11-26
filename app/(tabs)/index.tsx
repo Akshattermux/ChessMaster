@@ -1,98 +1,358 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Animated,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { ChessColors } from '@/constants/theme';
+import { loadStats, GameStats, DEFAULT_STATS } from '@/src/storage/stats';
+import { loadAllGames, SavedGame } from '@/src/storage/games';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const router = useRouter();
+  const [stats, setStats] = useState<GameStats>(DEFAULT_STATS);
+  const [recentGame, setRecentGame] = useState<SavedGame | null>(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  useEffect(() => {
+    // Load data
+    Promise.all([loadStats(), loadAllGames()]).then(([s, games]) => {
+      setStats(s);
+      setRecentGame(games[0] || null);
+    });
+
+    // Entrance animation
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  const winRate =
+    stats.gamesPlayed > 0
+      ? Math.round((stats.gamesWon / stats.gamesPlayed) * 100)
+      : 0;
+
+  return (
+    <View style={styles.container}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+        {/* Header */}
+        <Animated.View
+          style={[styles.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
+        >
+          <Text style={styles.logoText}>♔</Text>
+          <Text style={styles.appName}>Chess Master</Text>
+          <Text style={styles.tagline}>Play. Learn. Master.</Text>
+        </Animated.View>
+
+
+
+        {/* Quick Play Buttons */}
+        <Animated.View
+          style={[
+            styles.section,
+            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+          ]}
+        >
+          <Text style={styles.sectionTitle}>Quick Play</Text>
+          <View style={styles.playButtons}>
+            <TouchableOpacity
+              style={[styles.playButton, styles.playButtonPrimary]}
+              onPress={() => router.push('/game')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.playButtonIcon}>👥</Text>
+              <Text style={styles.playButtonTitle}>2 Players</Text>
+              <Text style={styles.playButtonSub}>Local multiplayer</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.playButton, styles.playButtonSecondary]}
+              onPress={() => router.push('/game/ai')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.playButtonIcon}>🤖</Text>
+              <Text style={styles.playButtonTitle}>vs AI</Text>
+              <Text style={styles.playButtonSub}>4 difficulty levels</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.secondaryButtons}>
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => router.push('/puzzles')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.secondaryButtonIcon}>🧩</Text>
+              <Text style={styles.secondaryButtonText}>Puzzles</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => router.push('/game/analysis')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.secondaryButtonIcon}>🔍</Text>
+              <Text style={styles.secondaryButtonText}>Analysis</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => router.push('/history')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.secondaryButtonIcon}>📜</Text>
+              <Text style={styles.secondaryButtonText}>History</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+
+        {/* Stats Card */}
+        <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
+          <Text style={styles.sectionTitle}>Your Stats</Text>
+          <View style={styles.statsGrid}>
+            <StatCard label="Games" value={stats.gamesPlayed.toString()} icon="🎮" />
+            <StatCard label="Win Rate" value={`${winRate}%`} icon="📈" />
+            <StatCard label="Best Streak" value={stats.bestWinStreak.toString()} icon="🔥" />
+            <StatCard label="Puzzles" value={stats.puzzlesSolved.toString()} icon="🧩" />
+          </View>
+        </Animated.View>
+
+        {/* Recent Game */}
+        {recentGame && (
+          <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
+            <Text style={styles.sectionTitle}>Recent Game</Text>
+            <TouchableOpacity
+              style={styles.recentGameCard}
+              onPress={() => router.push('/history')}
+              activeOpacity={0.8}
+            >
+              <View style={styles.recentGameInfo}>
+                <Text style={styles.recentGameVs}>
+                  {recentGame.white} vs {recentGame.black}
+                </Text>
+                <Text style={styles.recentGameDate}>
+                  {new Date(recentGame.date).toLocaleDateString()}
+                </Text>
+                <Text style={styles.recentGameMoves}>{recentGame.moves} moves</Text>
+              </View>
+              <View
+                style={[
+                  styles.recentGameResult,
+                  recentGame.result === '1-0'
+                    ? styles.resultWin
+                    : recentGame.result === '0-1'
+                    ? styles.resultLoss
+                    : styles.resultDraw,
+                ]}
+              >
+                <Text style={styles.recentGameResultText}>{recentGame.result}</Text>
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
+        <View style={styles.bottomPad} />
+      </ScrollView>
+    </View>
+  );
+}
+
+function StatCard({ label, value, icon }: { label: string; value: string; icon: string }) {
+  return (
+    <View style={styles.statCard}>
+      <Text style={styles.statIcon}>{icon}</Text>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: ChessColors.background,
   },
-  stepContainer: {
-    gap: 8,
+  scroll: {
+    paddingBottom: 32,
+  },
+  header: {
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingBottom: 24,
+    backgroundColor: ChessColors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: ChessColors.textMuted,
+  },
+  logoText: {
+    fontSize: 64,
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  appName: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: ChessColors.gold,
+    letterSpacing: 1,
+  },
+  tagline: {
+    fontSize: 16,
+    color: ChessColors.textSecondary,
+    marginTop: 4,
+    letterSpacing: 2,
+  },
+
+  section: {
+    paddingHorizontal: 16,
+    paddingTop: 24,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: ChessColors.textPrimary,
+    marginBottom: 14,
+    letterSpacing: 0.3,
+  },
+  playButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  playButton: {
+    flex: 1,
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  playButtonPrimary: {
+    backgroundColor: ChessColors.goldDark,
+    borderColor: ChessColors.gold,
+  },
+  playButtonSecondary: {
+    backgroundColor: ChessColors.surface,
+    borderColor: ChessColors.textMuted,
+  },
+  playButtonIcon: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  playButtonTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: ChessColors.textPrimary,
+    marginBottom: 2,
+  },
+  playButtonSub: {
+    fontSize: 12,
+    color: ChessColors.textSecondary,
+  },
+  secondaryButtons: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  secondaryButton: {
+    flex: 1,
+    backgroundColor: ChessColors.surface,
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: ChessColors.textMuted,
+  },
+  secondaryButtonIcon: {
+    fontSize: 24,
+    marginBottom: 4,
+  },
+  secondaryButtonText: {
+    fontSize: 13,
+    color: ChessColors.textSecondary,
+    fontWeight: '600',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: ChessColors.surface,
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: ChessColors.textMuted,
+  },
+  statIcon: {
+    fontSize: 22,
+    marginBottom: 4,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: ChessColors.gold,
+  },
+  statLabel: {
+    fontSize: 11,
+    color: ChessColors.textSecondary,
+    marginTop: 2,
+  },
+  recentGameCard: {
+    backgroundColor: ChessColors.surface,
+    borderRadius: 14,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: ChessColors.textMuted,
+  },
+  recentGameInfo: {
+    flex: 1,
+  },
+  recentGameVs: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: ChessColors.textPrimary,
+    marginBottom: 4,
+  },
+  recentGameDate: {
+    fontSize: 13,
+    color: ChessColors.textSecondary,
+  },
+  recentGameMoves: {
+    fontSize: 12,
+    color: ChessColors.textMuted,
+    marginTop: 2,
+  },
+  recentGameResult: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  resultWin: { backgroundColor: '#1B3A1B' },
+  resultLoss: { backgroundColor: '#3A1B1B' },
+  resultDraw: { backgroundColor: '#2A2A1B' },
+  recentGameResultText: {
+    fontWeight: '700',
+    fontFamily: 'monospace',
+    color: ChessColors.gold,
+    fontSize: 14,
+  },
+  bottomPad: {
+    height: 20,
   },
 });
